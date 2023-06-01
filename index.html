@@ -1,0 +1,288 @@
+<!DOCTYPE html PUBLIC "-//w3c//dtd html 4.0 transitional//en">
+<!-- saved from url=(0071)https://web.archive.org/web/20030419015809/http://richardson.episd.org/ -->
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=windows-1252"><script src="./index_files/analytics.js" type="text/javascript"></script><script>/******/ (() => { // webpackBootstrap
+/******/ 	"use strict";
+var __webpack_exports__ = {};
+
+;// CONCATENATED MODULE: ../core/dist/flash-identifiers.js
+const FLASH_MIMETYPE = "application/x-shockwave-flash";
+const FUTURESPLASH_MIMETYPE = "application/futuresplash";
+const FLASH7_AND_8_MIMETYPE = "application/x-shockwave-flash2-preview";
+const FLASH_MOVIE_MIMETYPE = "application/vnd.adobe.flash.movie";
+const FLASH_ACTIVEX_CLASSID = "clsid:D27CDB6E-AE6D-11cf-96B8-444553540000";
+
+;// CONCATENATED MODULE: ../core/dist/plugin-polyfill.js
+
+/**
+ * Replacement object for `MimeTypeArray` that lets us install new fake mime
+ * types.
+ *
+ * Unlike plugins we can at least enumerate mime types in Firefox, so we don't
+ * lose data.
+ *
+ * We also expose a method called `install` which adds a new plugin. This is
+ * used to falsify Flash detection. If the existing `navigator.mimeTypes` has an
+ * `install` method, you should not use `RuffleMimeTypeArray` as some other
+ * plugin emulator is already present.
+ */
+class RuffleMimeTypeArray {
+    constructor(mimeTypes) {
+        this.__mimeTypes = [];
+        this.__namedMimeTypes = {};
+        if (mimeTypes) {
+            for (let i = 0; i < mimeTypes.length; i++) {
+                this.install(mimeTypes[i]);
+            }
+        }
+    }
+    /**
+     * Install a MIME Type into the array.
+     *
+     * @param mimeType The mime type to install
+     */
+    install(mimeType) {
+        const index = this.__mimeTypes.length;
+        this.__mimeTypes.push(mimeType);
+        this.__namedMimeTypes[mimeType.type] = mimeType;
+        this[mimeType.type] = mimeType;
+        this[index] = mimeType;
+    }
+    item(index) {
+        // This behavior is done to emulate a 32-bit uint,
+        // which browsers use.
+        return this.__mimeTypes[index >>> 0];
+    }
+    namedItem(name) {
+        return this.__namedMimeTypes[name];
+    }
+    get length() {
+        return this.__mimeTypes.length;
+    }
+    [Symbol.iterator]() {
+        return this.__mimeTypes[Symbol.iterator]();
+    }
+}
+/**
+ * Equivalent object to `Plugin` that allows us to falsify plugins.
+ */
+class RufflePlugin extends RuffleMimeTypeArray {
+    constructor(name, description, filename) {
+        super();
+        this.name = name;
+        this.description = description;
+        this.filename = filename;
+    }
+}
+/**
+ * Replacement object for `PluginArray` that lets us install new fake plugins.
+ *
+ * This object needs to wrap the native plugin array, since the user might have
+ * actual plugins installed. Firefox doesn't let us enumerate the array, though,
+ * which has some consequences. Namely, we can't actually perfectly wrap the
+ * native plugin array, at least unless there's some secret "unresolved object
+ * property name handler" that I've never known before in JS...
+ *
+ * We can still wrap `namedItem` perfectly at least.
+ *
+ * We also expose a method called `install` which adds a new plugin. This is
+ * used to falsify Flash detection. If the existing `navigator.plugins` has an
+ * `install` method, you should not use `RufflePluginArray` as some other plugin
+ * emulator is already present.
+ */
+class RufflePluginArray {
+    constructor(plugins) {
+        this.__plugins = [];
+        this.__namedPlugins = {};
+        for (let i = 0; i < plugins.length; i++) {
+            this.install(plugins[i]);
+        }
+    }
+    install(plugin) {
+        const index = this.__plugins.length;
+        this.__plugins.push(plugin);
+        this.__namedPlugins[plugin.name] = plugin;
+        this[plugin.name] = plugin;
+        this[index] = plugin;
+    }
+    item(index) {
+        // This behavior is done to emulate a 32-bit uint,
+        // which browsers use. Cloudflare's anti-bot
+        // checks rely on this.
+        return this.__plugins[index >>> 0];
+    }
+    namedItem(name) {
+        return this.__namedPlugins[name];
+    }
+    refresh() {
+        // Nothing to do, we just need to define the method.
+    }
+    [Symbol.iterator]() {
+        return this.__plugins[Symbol.iterator]();
+    }
+    get length() {
+        return this.__plugins.length;
+    }
+}
+/**
+ * A fake plugin designed to trigger Flash detection scripts.
+ */
+const FLASH_PLUGIN = new RufflePlugin("Shockwave Flash", "Shockwave Flash 32.0 r0", "ruffle.js");
+/**
+ * A fake plugin designed to allow early detection of if the Ruffle extension is in use.
+ */
+const RUFFLE_EXTENSION = new RufflePlugin("Ruffle Extension", "Ruffle Extension", "ruffle.js");
+FLASH_PLUGIN.install({
+    type: FUTURESPLASH_MIMETYPE,
+    description: "Shockwave Flash",
+    suffixes: "spl",
+    enabledPlugin: FLASH_PLUGIN,
+});
+FLASH_PLUGIN.install({
+    type: FLASH_MIMETYPE,
+    description: "Shockwave Flash",
+    suffixes: "swf",
+    enabledPlugin: FLASH_PLUGIN,
+});
+FLASH_PLUGIN.install({
+    type: FLASH7_AND_8_MIMETYPE,
+    description: "Shockwave Flash",
+    suffixes: "swf",
+    enabledPlugin: FLASH_PLUGIN,
+});
+FLASH_PLUGIN.install({
+    type: FLASH_MOVIE_MIMETYPE,
+    description: "Shockwave Flash",
+    suffixes: "swf",
+    enabledPlugin: FLASH_PLUGIN,
+});
+RUFFLE_EXTENSION.install({
+    type: "",
+    description: "Ruffle Detection",
+    suffixes: "",
+    enabledPlugin: RUFFLE_EXTENSION,
+});
+/**
+ * Install a fake plugin such that detectors will see it in `navigator.plugins`.
+ *
+ * This function takes care to check if the existing implementation of
+ * `navigator.plugins` already accepts fake plugin entries. If so, it will use
+ * that version of the plugin array. This allows the plugin polyfill to compose
+ * across multiple plugin emulators with the first emulator's polyfill winning.
+ *
+ * @param plugin The plugin to install
+ */
+function installPlugin(plugin) {
+    if (!("install" in navigator.plugins) || !navigator.plugins["install"]) {
+        Object.defineProperty(navigator, "plugins", {
+            value: new RufflePluginArray(navigator.plugins),
+            writable: false,
+        });
+    }
+    const plugins = navigator.plugins;
+    plugins.install(plugin);
+    if (plugin.length > 0 &&
+        (!("install" in navigator.mimeTypes) || !navigator.mimeTypes["install"])) {
+        Object.defineProperty(navigator, "mimeTypes", {
+            value: new RuffleMimeTypeArray(navigator.mimeTypes),
+            writable: false,
+        });
+    }
+    const mimeTypes = navigator.mimeTypes;
+    for (let i = 0; i < plugin.length; i += 1) {
+        mimeTypes.install(plugin[i]);
+    }
+}
+
+;// CONCATENATED MODULE: ./src/plugin-polyfill.ts
+// This file is compiled and then injected into content.ts's compiled form.
+
+installPlugin(FLASH_PLUGIN);
+installPlugin(RUFFLE_EXTENSION);
+
+/******/ })()
+;</script><script charset="utf-8" src="chrome-extension://donbcfbmhbcapadipfkeojnmajbakjdc/dist/ruffle.js?id=81846121066"></script>
+<script type="text/javascript">window.addEventListener('DOMContentLoaded',function(){var v=archive_analytics.values;v.service='wb';v.server_name='wwwb-app211.us.archive.org';v.server_ms=235;archive_analytics.send_pageview({});});</script>
+<script type="text/javascript" src="./index_files/bundle-playback.js" charset="utf-8"></script>
+<script type="text/javascript" src="./index_files/wombat.js" charset="utf-8"></script>
+<script type="text/javascript">
+  __wm.init("https://web.archive.org/web");
+  __wm.wombat("http://richardson.episd.org:80/","20030419015809","https://web.archive.org/","web","/_static/",
+	      "1050717489");
+</script>
+<link rel="stylesheet" type="text/css" href="./index_files/banner-styles.css">
+<link rel="stylesheet" type="text/css" href="./index_files/iconochive.css">
+<!-- End Wayback Rewrite JS Include -->
+
+   
+   <meta name="Author" content="q q">
+   <meta name="GENERATOR" content="Mozilla/4.76 [en] (Win95; U) [Netscape]">
+   <title>Richardson Home</title>
+</head>
+<body background="./index_files/jagback02.jpg" data-new-gr-c-s-check-loaded="14.1111.0" data-gr-ext-installed="">
+
+<div align="right">
+</div>
+
+<table border="0" cols="3" width="100%">
+<tbody><tr>
+<td width="15%"><img src="./jag01.png" height="130" width="87" align="BOTTOM"></td>
+
+<td width="75%">
+<center><img src="./img1.png" border="0" height="25" width="469" align="BOTTOM"></center>
+</td>
+
+<td width="10%"><img src="./index_files/paw.gif" height="26" width="26"></td>
+</tr>
+</tbody></table>
+
+<table border="0" cols="3" width="100%">
+<tbody><tr valign="TOP">
+<td width="15%"><a href="https://www.episd.org"><img src="./logo-episd.png" alt="El Paso ISD" height="55" width="123" align="BOTTOM"></a>
+<br><applet code="spotLinks.class" width="175" height="300" hspace="0" vspace="0" align="TOP"><param name="baseURL" value="http://nolanschool.elpaso.k12.tx.us/"><param name="target" value="NewWin"><param name="buttons" value="9"><param name="name0" value="EPISD Home Page"><param name="link0" value="http://web.episd.org"><param name="name1" value="EPISD Online"><param name="link1" value="http://www.episd.org"><param name="name2" value="NRMS Home Page"><param name="link2" value="http://nolanschool.elpaso.k12.tx.us/index.html"><param name="name3" value="Faculty &amp; Staff"><param name="link3" value="http://nolanschool.elpaso.k12.tx.us/admin.html"><param name="name4" value="Organizations"><param name="link4" value="http://nolanschool.elpaso.k12.tx.us/clubs.html"><param name="name5" value="School Informatin"><param name="link5" value="http://nolanschool.elpaso.k12.tx.us/ourschool.html"><param name="name6" value="Policies"><param name="link6" value="http://nolanschool.elpaso.k12.tx.us/policy.html"><param name="name7" value="NRMS Newsletter"><param name="link7" value="http://nolanschool.elpaso.k12.tx.us/news.html"><param name="name8" value="Links Page"><param name="link8" value="http://nolanschool.elpaso.k12.tx.us/links.html"><param name="buttColor" value="0,120,0"><param name="bgColor" value="0,0,130"><param name="txtColor" value="255,255,255"><param name="txtHigh" value="255,255,0"><param name="spotColor" value="255,178,12"><param name="buttonSpace" value="10"><param name="ButtonPad" value="8"></applet></td>
+
+<td width="70%">
+<center><img src="./nr.png" height="80" width="467" align="BOTTOM">
+<br><img src="./nrms3.png" height="280" width="405" align="BOTTOM">
+<div> </div>
+<br><img src="./ms.png" height="75" width="438" align="BOTTOM">
+<p><b><font face="Tahoma"><font color="#000099">NOLAN RICHARDSON MIDDLE
+SCHOOL</font></font></b>
+<br><b><font face="Tahoma"><font color="#000099">11350 LOMA FRANKLIN</font></font></b>
+<br><b><font face="Tahoma"><font color="#000099">EL PASO, TEXAS&nbsp;&nbsp;
+79934</font></font></b>
+<br><b><font face="Tahoma"><font color="#000099">PHONE: 915-236-6650</font></font></b>
+<br><b><font face="Tahoma"><font color="#000099">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</font></font></b>
+</p><p><font face="Tahoma"><font color="#000099">Web Design</font></font>
+<br><font face="Tahoma"><font color="#000099">William Tucker</font></font>
+</p><p><font face="Tahoma"><font color="#000099">QUESTIONS OR COMMENTS</font></font>
+<br><font face="Tahoma"><a href="mailto:wtucke5260@episd.org">Contact Us</a></font></p></center>
+</td>
+
+<td width="10%"></td>
+</tr>
+</tbody></table>
+
+
+
+
+</body><grammarly-desktop-integration data-grammarly-shadow-root="true"><template shadowrootmode="open"><style>
+  div.grammarly-desktop-integration {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+    -moz-user-select: none;
+    -webkit-user-select: none;
+    -ms-user-select:none;
+    user-select:none;
+  }
+
+  div.grammarly-desktop-integration:before {
+    content: attr(data-content);
+  }
+</style><div aria-label="grammarly-integration" role="group" tabindex="-1" class="grammarly-desktop-integration" data-content="{&quot;mode&quot;:&quot;full&quot;,&quot;isActive&quot;:true,&quot;isUserDisabled&quot;:false}"></div></template></grammarly-desktop-integration></html>
